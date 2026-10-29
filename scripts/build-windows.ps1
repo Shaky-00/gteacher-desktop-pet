@@ -18,11 +18,11 @@ $installer = Join-Path $project 'installer\GTeacher.iss'
 $outDir = Split-Path -Parent $exe
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
 
-# Put the two companion scripts into the compiled executable. This prevents the
+# Put the companion scripts into the compiled executable. This prevents the
 # installed app from needing to dot-source loose .ps1 files under a restrictive
 # Windows PowerShell execution policy.
 $embeddedSource = [System.IO.File]::ReadAllText($main, [System.Text.Encoding]::UTF8)
-foreach ($name in @('LifeDesk.ps1', 'UpdateDesk.ps1')) {
+foreach ($name in @('VoiceDesk.ps1', 'LifeDesk.ps1', 'UpdateDesk.ps1')) {
     $needle = ". (Join-Path `$PSScriptRoot '$name')"
     if (-not $embeddedSource.Contains($needle)) { throw "Missing source include: $name" }
     $part = [System.IO.File]::ReadAllText((Join-Path $project $name), [System.Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
@@ -33,7 +33,7 @@ $compiledSource = Join-Path $outDir 'GTeacherPet.compiled.ps1'
 
 Import-Module ps2exe -RequiredVersion '1.0.18' -ErrorAction Stop
 Invoke-ps2exe -inputFile $compiledSource -outputFile $exe -x64 -STA -noConsole `
-    -iconFile $icon -title '小 G 老师' -product 'G Teacher Desktop Pet' `
+    -iconFile $icon -title '小G' -product '小G' `
     -description '温暖的 Windows 桌面陪伴小助手' -version "$Version.0" -DPIAware
 if (-not (Test-Path $exe)) { throw 'PS2EXE did not create the application EXE.' }
 

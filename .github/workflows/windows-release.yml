@@ -33,13 +33,18 @@ jobs:
           if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$version") {
             throw 'The Git tag does not match version.txt.'
           }
-          foreach ($file in @('GTeacherPet.ps1','LifeDesk.ps1','UpdateDesk.ps1','installer/GTeacher.iss','assets/gteacher.ico')) {
+          foreach ($file in @('GTeacherPet.ps1','VoiceDesk.ps1','LifeDesk.ps1','UpdateDesk.ps1','installer/GTeacher.iss','assets/gteacher.ico')) {
             if (-not (Test-Path -LiteralPath $file)) { throw "Missing required file: $file" }
           }
           if ((Get-ChildItem sprites -Filter '*.png').Count -lt 20) { throw 'Sprite image set is incomplete.' }
           $checker = Get-Content UpdateDesk.ps1 -Raw -Encoding UTF8
           if (-not $checker.Contains("[Version]'$version'")) { throw 'UpdateDesk.ps1 version does not match version.txt.' }
           [System.IO.File]::AppendAllText($env:GITHUB_ENV, "PET_VERSION=$version`n", (New-Object System.Text.UTF8Encoding($false)))
+
+      - name: Verify Windows source and WPF interfaces
+        shell: powershell
+        run: |
+          & .\scripts\verify-windows.ps1
 
       - name: Install Windows packaging tools
         shell: powershell
@@ -74,6 +79,6 @@ jobs:
           & gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
           if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Bump version.txt instead of replacing it." }
           & gh release create $tag "dist/GTeacher-Setup-v$env:PET_VERSION.exe" "dist/GTeacher-Setup-v$env:PET_VERSION.exe.sha256" `
-              --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "小 G 老师 $tag" `
-              --notes 'Windows 10/11 小 G 老师桌宠分享版。下载 Setup.exe 安装；个人设置与生活手账留在本机。'
+              --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "小G $tag" `
+              --notes-file CHANGELOG.md
           if ($LASTEXITCODE -ne 0) { throw 'Publishing GitHub Release failed.' }

@@ -1,4 +1,4 @@
-﻿# 小 G 生活手账 v0.9 | Windows PowerShell 5.1 / WPF
+﻿# 小G 工作台 v0.9 | Windows PowerShell 5.1 / WPF
 # Dot-sourced by GTeacherPet.ps1. Personal content stays on this Windows account.
 
 $script:LifeFile = Join-Path $script:SettingsDirectory 'life.json'
@@ -65,10 +65,10 @@ function Life-Row([string]$listName, [string]$id, [string]$display) {
     [void]$script:LifeControls[$listName].Items.Add($row)
 }
 function Life-Warn([string]$message) {
-    [void][System.Windows.MessageBox]::Show($message, '小 G 老师的小提醒')
+    [void][System.Windows.MessageBox]::Show($message, '小G的小提醒')
 }
 function Life-Confirm([string]$message) {
-    return ([System.Windows.MessageBox]::Show($message, '小 G 老师确认一下',
+    return ([System.Windows.MessageBox]::Show($message, '小G确认一下',
         [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question) -eq [System.Windows.MessageBoxResult]::Yes)
 }
 function Life-Clean([string]$text, [int]$max) {
@@ -132,7 +132,7 @@ function Refresh-Focus {
     $c = $script:LifeControls
     $c.FocusClock.Text = ('{0:00}:{1:00}' -f [int][Math]::Floor($left/60), [int]($left%60))
     $c.FocusStatus.Text = if ($script:FocusRunning) {
-        if ($script:FocusKind -eq 'break') { '正在休息 · 小 G 陪你放松' } else { '专注进行中 · 小 G 安静陪伴' }
+        if ($script:FocusKind -eq 'break') { '正在休息 · 小G 陪你放松' } else { '专注进行中 · 小G 安静陪伴' }
     } elseif ($left -gt 0) { '已暂停 · 随时可以继续' } else { '准备好就开始吧！' }
     $c.FocusPause.Content = if ($script:FocusRunning) { '⏸ 暂停' } else { '▶ 继续' }
     $c.FocusPause.IsEnabled = ($left -gt 0 -or $script:FocusRunning)
@@ -182,7 +182,7 @@ function Resume-Focus {
     if ($script:FocusRemaining -le 0 -or $script:FocusRunning) { return }
     $script:FocusDeadline = [DateTime]::UtcNow.AddSeconds($script:FocusRemaining)
     $script:FocusRunning = $true
-    Say '继续加油！小 G 又开始安静陪你啦。'
+    Say '继续加油！小G 又开始安静陪你啦。'
     Refresh-Focus; Update-Menu-States
 }
 function Reset-Focus {
@@ -216,7 +216,7 @@ function Ensure-FocusHud {
       <TextBlock x:Name="HudIcon" Text="⏰" FontSize="29" VerticalAlignment="Center" HorizontalAlignment="Center"/>
       <StackPanel Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center">
         <TextBlock x:Name="HudClock" Text="25:00" FontSize="22" FontWeight="Bold" Foreground="#FF614968" LineHeight="23"/>
-        <TextBlock x:Name="HudCaption" Text="小 G 陪你专注 ✨" FontSize="11" Foreground="#FF896A49"/>
+        <TextBlock x:Name="HudCaption" Text="小G 陪你专注 ✨" FontSize="11" Foreground="#FF896A49"/>
       </StackPanel>
     </Grid>
   </Border>
@@ -271,7 +271,7 @@ function Update-FocusHud {
     $script:HudIcon.Text = if ($script:FocusRunning) { '⏰' } else { '⏸' }
     $script:HudCaption.Text = if (-not $script:FocusRunning) { '暂停中 · 等你回来' }
                               elseif ($script:FocusKind -eq 'break') { '休息一下 🌷' }
-                              else { '小 G 陪你专注 ✨' }
+                              else { '小G 陪你专注 ✨' }
     if (-not $script:FocusHud.IsVisible) { $script:FocusHud.Show() }
 }
 
@@ -317,7 +317,7 @@ function Check-LifeCare {
     if (($now - $script:LastCareAt).TotalMinutes -lt [int]$script:LifeData.careMinutes) { return }
     $script:LastCareAt = $now
     $lines = @(
-        '小 G 提醒：喝一口水吧～🥤',
+        '小G 提醒：喝一口水吧～🥤',
         '盯屏幕有一会儿啦，看看远处放松眼睛！',
         '我们站起来伸个懒腰，好不好？',
         '做得很棒！不过肩膀也该松一松啦。'
@@ -332,7 +332,7 @@ function Check-LifeAnniversaries {
             if ((Next-Anniversary $a).Date -eq (Get-Date).Date) {
                 $script:LifeData.lastAnniversaryDay = $day
                 Save-Life
-                Say ("🎉 今天是「{0}」！小 G 给你送上小星星！" -f $a.title)
+                Say ("🎉 今天是「{0}」！小G 给你送上小星星！" -f $a.title)
                 break
             }
         } catch { }
@@ -354,7 +354,7 @@ $script:LifeTick.Start()
 
 # The user chooses a city explicitly; the app never guesses their address.
 # Both asynchronous JSON requests use Open-Meteo's public non-commercial API.
-$script:WeatherText = "输入城市后点「查天气」吧！小 G 会帮你看看今天适合怎样出门。"
+$script:WeatherText = "输入城市后点「查天气」吧！小G 会帮你看看今天适合怎样出门。"
 function Weather-Describe([int]$code) {
     if ($code -eq 0) { return '晴朗 ☀' }
     if ($code -le 3) { return '多云 ⛅' }
@@ -381,7 +381,7 @@ function Get-LifeWeather {
     $script:LifeData.city = $city
     Save-Life
     $script:WeatherBusy = $true
-    Weather-Set ("小 G 正在查找「$city」的天气… ☁")
+    Weather-Set ("小G 正在查找「$city」的天气… ☁")
     try {
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
         $url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
@@ -428,7 +428,7 @@ function Get-LifeWeather {
                                elseif ($temp -ge 30) { '天气热热的，记得补水和防晒！' }
                                else { '今天也要好好照顾自己呀。' }
                         $stamp = (Get-Date).ToString('HH:mm')
-                        Weather-Set ("{0}  ·  {1}`r`n`r`n现在 {2}℃（体感 {3}℃）`r`n今日 {4}～{5}℃ · 降雨概率最高 {6}%`r`n`r`n小 G：{7}`r`n`r`n更新于 {8}  ·  数据来源 Open-Meteo" -f
+                        Weather-Set ("{0}  ·  {1}`r`n`r`n现在 {2}℃（体感 {3}℃）`r`n今日 {4}～{5}℃ · 降雨概率最高 {6}%`r`n`r`n小G：{7}`r`n`r`n更新于 {8}  ·  数据来源 Open-Meteo" -f
                             $script:WeatherPlace,$description,$temp,$feels,$low,$high,$rain,$tip,$stamp)
                         Say ("{0}，{1}，现在 {2}℃。{3}" -f $script:AppConfig.nickname,$description,$temp,$tip)
                     } catch { Weather-Fail $_.Exception.Message }
@@ -459,7 +459,7 @@ function Show-WeatherCard {
         [xml]$weatherXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="小 G 天气观察站" Width="426" Height="375" WindowStyle="None"
+        Title="小G 天气观察站" Width="426" Height="375" WindowStyle="None"
         AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         ShowInTaskbar="False" WindowStartupLocation="Manual" FontFamily="Microsoft YaHei UI">
   <Window.Resources>
@@ -482,17 +482,21 @@ function Show-WeatherCard {
       </Setter>
     </Style>
     <Style TargetType="{x:Type TextBox}">
+      <Setter Property="Foreground" Value="#FF554631"/>
+      <Setter Property="CaretBrush" Value="#FF554631"/>
+      <Setter Property="SelectionBrush" Value="#FFF1C46C"/>
       <Setter Property="FontSize" Value="15"/>
       <Setter Property="Padding" Value="10,7"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="Template"><Setter.Value>
         <ControlTemplate TargetType="{x:Type TextBox}">
           <Border Background="#FFFFFEF7" CornerRadius="12" BorderBrush="#FFE7CA90" BorderThickness="1.5">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="7,2"/>
+            <ScrollViewer Focusable="False" x:Name="PART_ContentHost" Margin="7,2"/>
           </Border>
         </ControlTemplate>
       </Setter.Value></Setter>
     </Style>
+
   </Window.Resources>
   <Border Margin="13" CornerRadius="23" Background="#FFFFF7E4"
           BorderBrush="#FFE3BE79" BorderThickness="2" Padding="18">
@@ -505,7 +509,7 @@ function Show-WeatherCard {
       <Grid x:Name="WeatherDragHeader" Margin="0,0,0,14">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel>
-          <TextBlock Text="☁️  小 G 的天气观察站" FontSize="19" FontWeight="Bold" Foreground="#FF5B4A6C"/>
+          <TextBlock Text="☁️  小G 的天气观察站" FontSize="19" FontWeight="Bold" Foreground="#FF5B4A6C"/>
           <TextBlock Text="让我看看今天的天空会是什么样～" FontSize="12" Foreground="#FF967C5D" Margin="0,4,0,0"/>
         </StackPanel>
         <Button x:Name="WeatherClose" Grid.Column="1" Content="✕" Width="35" Height="35" Padding="4"
@@ -592,7 +596,7 @@ function Show-LifeDesk([string]$page = 'todo') {
         [xml]$lifeXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="小 G 老师 · 生活手账" Width="810" Height="650" MinWidth="710" MinHeight="560"
+        Title="小G · 工作台" Width="810" Height="650" MinWidth="710" MinHeight="560"
         WindowStartupLocation="CenterScreen" Background="#FFFFF8E8"
         FontFamily="Microsoft YaHei UI" FontSize="14">
   <Window.Resources>
@@ -618,13 +622,16 @@ function Show-LifeDesk([string]$page = 'todo') {
       </Setter.Value></Setter>
     </Style>
     <Style TargetType="{x:Type TextBox}">
+      <Setter Property="Foreground" Value="#FF554631"/>
+      <Setter Property="CaretBrush" Value="#FF554631"/>
+      <Setter Property="SelectionBrush" Value="#FFF1C46C"/>
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="Padding" Value="9,7"/>
       <Setter Property="Template"><Setter.Value>
         <ControlTemplate TargetType="{x:Type TextBox}">
           <Border Background="#FFFFFEF8" BorderBrush="#FFE7CB97"
                   BorderThickness="1.5" CornerRadius="12">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="7,3"/>
+            <ScrollViewer Focusable="False" x:Name="PART_ContentHost" Margin="7,3"/>
           </Border>
         </ControlTemplate>
       </Setter.Value></Setter>
@@ -715,6 +722,31 @@ function Show-LifeDesk([string]$page = 'todo') {
         </ControlTemplate>
       </Setter.Value></Setter>
     </Style>
+
+    <Style TargetType="{x:Type ComboBox}">
+      <Setter Property="FontSize" Value="14"/><Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Foreground" Value="#FF654B2A"/>
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="{x:Type ComboBox}">
+          <Grid>
+            <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+              <ToggleButton.Template><ControlTemplate TargetType="{x:Type ToggleButton}">
+                <Border x:Name="Tile" Background="#FFFFFEF8" BorderBrush="#FFE5C891" BorderThickness="1.5" CornerRadius="10">
+                  <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                </Border>
+                <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tile" Property="BorderBrush" Value="#FFC99048"/></Trigger></ControlTemplate.Triggers>
+              </ControlTemplate></ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" IsHitTestVisible="False" Margin="10,4,28,4" VerticalAlignment="Center"/>
+            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+              <Border Background="#FFFFFEF8" BorderBrush="#FFE5C891" BorderThickness="1" CornerRadius="10" Padding="4" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                <ScrollViewer MaxHeight="240" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
   </Window.Resources>
   <Grid Margin="19">
     <Grid.RowDefinitions>
@@ -723,7 +755,7 @@ function Show-LifeDesk([string]$page = 'todo') {
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
     <StackPanel Margin="5,0,0,14">
-      <TextBlock Text="✦ 小 G 老师的生活手账" FontSize="25" FontWeight="Bold" Foreground="#FF594467"/>
+      <TextBlock Text="✦ 小G的工作台" FontSize="25" FontWeight="Bold" Foreground="#FF594467"/>
       <TextBlock Text="待办、专注、灵感和重要日子，都藏在这本小小的手账里。" FontSize="13" Foreground="#FF8C7655"/>
     </StackPanel>
     <Border Grid.Row="1" CornerRadius="13" BorderBrush="#FFE7C58E" BorderThickness="1.5" Background="#FFFFFDF6">
@@ -750,7 +782,7 @@ function Show-LifeDesk([string]$page = 'todo') {
           <StackPanel Margin="20">
             <Border Background="#FFFFF0D1" BorderBrush="#FFEAC68A" BorderThickness="1.4" CornerRadius="20" Padding="24,25">
               <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="⏰  和小 G 一起认真一会儿" FontWeight="SemiBold" FontSize="16"
+                <TextBlock Text="⏰  和小G 一起认真一会儿" FontWeight="SemiBold" FontSize="16"
                            Foreground="#FF8D6A59" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                 <TextBlock x:Name="FocusClock" Text="00:00" FontSize="64" FontWeight="Bold"
                            Foreground="#FF5C4A69" HorizontalAlignment="Center"/>
@@ -772,13 +804,13 @@ function Show-LifeDesk([string]$page = 'todo') {
               <StackPanel>
                 <TextBlock x:Name="FocusProgress" Text="今天完成 0 个专注番茄 🍅"
                            FontSize="16" FontWeight="SemiBold" Foreground="#FF725978"/>
-                <TextBlock Text="开始后，小 G 会留在原地安静陪你，脚边出现一个持续倒计时的小闹钟。时间到啦，它会开心地庆祝！"
+                <TextBlock Text="开始后，小G 会留在原地安静陪你，脚边出现一个持续倒计时的小闹钟。时间到啦，它会开心地庆祝！"
                            TextWrapping="Wrap" LineHeight="22" Foreground="#FF8B785D" Margin="0,9,0,0"/>
               </StackPanel>
             </Border>
           </StackPanel>
         </TabItem>
-        <TabItem Header="📒 小 G 记事本">
+        <TabItem Header="📒 小G 记事本">
           <Grid Margin="14">
             <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid Grid.Column="0" Margin="0,0,12,0">
@@ -806,8 +838,21 @@ function Show-LifeDesk([string]$page = 'todo') {
             <ListBox x:Name="AnniversaryRows" Grid.Row="1"/>
             <StackPanel Grid.Row="2" Margin="0,11,0,0">
               <WrapPanel Margin="0,0,0,9">
-                <TextBox x:Name="AnniversaryInput" Width="300" MaxLength="80" ToolTip="例如：我们的纪念日" Margin="0,0,10,0"/>
-                <DatePicker x:Name="AnniversaryDate" Width="150" Margin="0,0,12,0"/>
+                <Grid Width="210" Margin="0,0,10,0">
+                  <TextBox x:Name="AnniversaryInput" MaxLength="80" ToolTip="写下重要的日子，例如：生日、我们的纪念日" AutomationProperties.Name="重要日子名称"/>
+                  <TextBlock Text="写下重要的日子" Foreground="#FF8B775D" Opacity="0.55" Margin="10,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock.Style><Style TargetType="{x:Type TextBlock}">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=AnniversaryInput}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style></TextBlock.Style>
+                  </TextBlock>
+                </Grid>
+                <ComboBox x:Name="AnniversaryYear" Width="91" ToolTip="年"/>
+                <TextBlock Text="年" VerticalAlignment="Center" Margin="5,0,8,0"/>
+                <ComboBox x:Name="AnniversaryMonth" Width="66" ToolTip="月"/>
+                <TextBlock Text="月" VerticalAlignment="Center" Margin="5,0,8,0"/>
+                <ComboBox x:Name="AnniversaryDay" Width="66" ToolTip="日"/>
+                <TextBlock Text="日" VerticalAlignment="Center" Margin="5,0,12,0"/>
                 <CheckBox x:Name="AnniversaryAnnual" Content="每年重复" VerticalAlignment="Center" IsChecked="True"/>
               </WrapPanel>
               <WrapPanel>
@@ -821,12 +866,12 @@ function Show-LifeDesk([string]$page = 'todo') {
           <StackPanel Margin="20">
             <Border Background="#FFFFF2DC" BorderBrush="#FFEBD0A4" BorderThickness="1.3" CornerRadius="20" Padding="24">
               <StackPanel>
-                <TextBlock Text="🌷  让小 G 温柔地关心你" FontWeight="Bold" FontSize="19"
+                <TextBlock Text="🌷  让小G 温柔地关心你" FontWeight="Bold" FontSize="19"
                            Foreground="#FF64527A" Margin="0,0,0,6"/>
-                <TextBlock Text="偶尔提醒喝水、伸展和休息。你专注时，小 G 会懂事地保持安静。"
+                <TextBlock Text="偶尔提醒喝水、伸展和休息。你专注时，小G 会懂事地保持安静。"
                            TextWrapping="Wrap" Foreground="#FF8A7159" Margin="0,0,0,20"/>
                 <CheckBox x:Name="CareToggle" Style="{StaticResource CareSwitch}"
-                          Content="开启小 G 的日常关怀" FontSize="16" Foreground="#FF5F5067"/>
+                          Content="开启小G 的日常关怀" FontSize="16" Foreground="#FF5F5067"/>
                 <TextBlock Text="✨  关怀间隔" FontWeight="SemiBold" FontSize="16"
                            Foreground="#FF6B536F" Margin="0,20,0,12"/>
                 <WrapPanel>
@@ -845,25 +890,34 @@ function Show-LifeDesk([string]$page = 'todo') {
         </TabItem>
       </TabControl>
     </Border>
-    <TextBlock Grid.Row="2" Text="✦ 小 G 的生活功能不会读取你的屏幕内容，也不需要 ChatGPT API。" FontSize="12" Foreground="#FF927C62" HorizontalAlignment="Right" Margin="0,10,4,0"/>
+    <TextBlock Grid.Row="2" Text="✦ 小G 的生活功能不会读取你的屏幕内容，也不需要 ChatGPT API。" FontSize="12" Foreground="#FF927C62" HorizontalAlignment="Right" Margin="0,10,4,0"/>
   </Grid>
 </Window>
 '@
         $reader = New-Object System.Xml.XmlNodeReader($lifeXaml)
         $script:LifeWindow = [System.Windows.Markup.XamlReader]::Load($reader)
         $script:LifeWindow.Owner = $script:Window
+        $script:LifeWindow.Icon = $script:Window.Icon
         $script:LifeControls = @{}
         foreach ($id in @('LifeTabs','TaskRows','TaskSummary','TaskInput','TaskAdd','TaskToggle','TaskDelete',
             'FocusClock','FocusStatus','FocusProgress','FocusStart25','FocusStart45','FocusBreak','FocusPause','FocusReset',
             'NoteRows','NoteTitle','NoteBody','NoteNew','NoteSave','NoteDelete',
-            'AnniversaryRows','AnniversaryInput','AnniversaryDate','AnniversaryAnnual','AnniversaryAdd','AnniversaryDelete',
+            'AnniversaryRows','AnniversaryInput','AnniversaryYear','AnniversaryMonth','AnniversaryDay','AnniversaryAnnual','AnniversaryAdd','AnniversaryDelete',
             'CareToggle','Care30','Care45','Care60','Care90','Care120','CareSave')) {
             $script:LifeControls[$id] = $script:LifeWindow.FindName($id)
-            if ($null -eq $script:LifeControls[$id]) { throw "生活手账缺少控件：$id" }
+            if ($null -eq $script:LifeControls[$id]) { throw "工作台缺少控件：$id" }
         }
         $c = $script:LifeControls
         $c.LifeTabs.SelectedIndex = $tabIndex
-        $c.AnniversaryDate.SelectedDate = (Get-Date).Date
+        $today = Get-Date
+        foreach ($year in 1900..([Math]::Max(2100, $today.Year + 30))) { [void]$c.AnniversaryYear.Items.Add($year) }
+        foreach ($month in 1..12) { [void]$c.AnniversaryMonth.Items.Add($month) }
+        $c.AnniversaryYear.SelectedItem = [int]$today.Year
+        $c.AnniversaryMonth.SelectedItem = [int]$today.Month
+        Update-AnniversaryDays
+        $c.AnniversaryDay.SelectedItem = [int]$today.Day
+        $c.AnniversaryYear.Add_SelectionChanged({ Update-AnniversaryDays })
+        $c.AnniversaryMonth.Add_SelectionChanged({ Update-AnniversaryDays })
         $c.CareToggle.IsChecked = [bool]$script:LifeData.careEnabled
         $careId = 'Care' + ([int]$script:LifeData.careMinutes).ToString()
         if (-not $c.ContainsKey($careId)) { $careId = 'Care60' }
@@ -877,8 +931,18 @@ function Show-LifeDesk([string]$page = 'todo') {
         Refresh-LifeTasks; Refresh-LifeNotes; Refresh-LifeAnniversaries; Refresh-Focus
     } catch {
         $script:LifeWindow = $null; $script:LifeControls = $null
-        Life-Warn ('生活手账暂时没有打开：' + $_.Exception.Message)
+        Life-Warn ('工作台暂时没有打开：' + $_.Exception.Message)
     }
+}
+
+function Update-AnniversaryDays {
+    $c = $script:LifeControls
+    if ($null -eq $c -or $null -eq $c.AnniversaryYear.SelectedItem -or $null -eq $c.AnniversaryMonth.SelectedItem) { return }
+    $previous = [Math]::Max(1, [int]$c.AnniversaryDay.SelectedItem)
+    $last = [DateTime]::DaysInMonth([int]$c.AnniversaryYear.SelectedItem, [int]$c.AnniversaryMonth.SelectedItem)
+    $c.AnniversaryDay.Items.Clear()
+    foreach ($d in 1..$last) { [void]$c.AnniversaryDay.Items.Add($d) }
+    $c.AnniversaryDay.SelectedItem = [int][Math]::Min($previous, $last)
 }
 
 function Initialize-LifeButtons {
@@ -975,9 +1039,9 @@ function Initialize-LifeButtons {
     $c.AnniversaryAdd.Add_Click({
         $title = Life-Clean ([string]$script:LifeControls.AnniversaryInput.Text) 80
         if (-not $title) { Life-Warn '给这个特别的日子起个名字吧～'; return }
-        if ($null -eq $script:LifeControls.AnniversaryDate.SelectedDate) { Life-Warn '还没有选日期哦。'; return }
+        if ($null -eq $script:LifeControls.AnniversaryDay.SelectedItem) { Life-Warn '还没有选日期哦。'; return }
         if (@($script:LifeData.anniversaries).Count -ge 150) { Life-Warn '重要日子也太多啦，请先整理。'; return }
-        $day = ([DateTime]$script:LifeControls.AnniversaryDate.SelectedDate).ToString('yyyy-MM-dd')
+        $day = ('{0:D4}-{1:D2}-{2:D2}' -f [int]$script:LifeControls.AnniversaryYear.SelectedItem, [int]$script:LifeControls.AnniversaryMonth.SelectedItem, [int]$script:LifeControls.AnniversaryDay.SelectedItem)
         $annual = [bool]$script:LifeControls.AnniversaryAnnual.IsChecked
         if (-not $annual -and ([DateTime]::Parse($day)).Date -lt (Get-Date).Date) {
             Life-Warn '不重复的倒计时请选择今天或未来日期。'; return
@@ -988,7 +1052,7 @@ function Initialize-LifeButtons {
         Save-Life
         $script:LifeControls.AnniversaryInput.Text = ''
         Refresh-LifeAnniversaries
-        Say '这个重要的日子，小 G 会帮你记着！ 🎂'
+        Say '这个重要的日子，小G 会帮你记着！ 🎂'
     })
     $c.AnniversaryDelete.Add_Click({
         $id = Life-Selected 'AnniversaryRows'

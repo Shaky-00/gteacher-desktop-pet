@@ -1,6 +1,6 @@
-﻿# G Teacher Desktop Pet v1.0.0 - Windows PowerShell 5.1 + WPF
+﻿# 小G Desktop Pet v1.1.0 - Windows PowerShell 5.1 + WPF
 # Uses the original generated transparent character paintings. No API keys.
-# v1.0 keeps the v0.9 life desk and adds installer-safe paths and release checks.
+# v1.1 unifies the workbench and adds optional offline voice and input fixes.
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
@@ -43,14 +43,14 @@ $script:DefaultPhrases = @{
     '把眼睛从屏幕上挪开一小会儿吧。', '认真努力的你，已经很棒了。',
     '忙完这一小段，咱们就休息一下。', '深呼吸，肩膀可以放松一点点。',
     '就算今天进度不多，也算认真前进了。', '别太着急，我们一点一点来。',
-    '小 G 老师就在这里，安静陪你。', '坐久了记得站起来活动活动～',
+    '小G就在这里，安静陪你。', '坐久了记得站起来活动活动～',
     '你忙你的，我负责给小星星充电。', '论文慢慢改，灵感会来的！',
     '一会儿喝点水，再继续加油吧。', '今天也辛苦啦，给你一颗小星星！'
   )
   interaction = @(
     '{name}，怎么啦？有什么事需要帮忙吗？', '我在我在！想聊聊天吗？',
     '嘿嘿，摸摸头收到啦！', '是想聊论文，还是偷偷休息五分钟呀？',
-    '小 G 老师已就位！', '找我聊天按 {hotkey} 哦～',
+    '小G已就位！', '找我聊天按 {hotkey} 哦～',
     '今天也要加油呀！抱抱。', '我听见啦，有什么新想法？',
     '再戳一下，我就要害羞啦。', '我在这里等你，随时喊我！'
   )
@@ -58,6 +58,7 @@ $script:DefaultPhrases = @{
 $script:AppConfig = @{
   nickname = ''; hotkeyLetter = 'G'; scale = 1.0; topmost = $true;
   mode = 'activity'; speechEnabled = $true;
+  voiceEnabled = $false; voiceName = ''; voiceVolume = 65;
   phrases = @{
     activity = @($script:DefaultPhrases.activity)
     companion = @($script:DefaultPhrases.companion)
@@ -69,7 +70,6 @@ if (Test-Path $script:SettingsFile) {
     try {
         $stored = Get-Content -LiteralPath $script:SettingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($stored.nickname) { $script:AppConfig.nickname = [string]$stored.nickname }
-        if ([string]$stored.hotkeyLetter -match '^[A-Za-z]$') { $script:AppConfig.hotkeyLetter = ([string]$stored.hotkeyLetter).ToUpperInvariant() }
         if ($null -ne $stored.scale -and [double]$stored.scale -ge 0.65 -and [double]$stored.scale -le 1.8) { $script:AppConfig.scale = [double]$stored.scale }
         if ($null -ne $stored.topmost) { $script:AppConfig.topmost = [bool]$stored.topmost }
         if ($null -ne $stored.PSObject.Properties['mode'] -and [string]$stored.mode -in @('activity','companion')) {
@@ -79,6 +79,9 @@ if (Test-Path $script:SettingsFile) {
             $script:AppConfig.mode = if ([bool]$stored.autonomous) { 'activity' } else { 'companion' }
         }
         if ($null -ne $stored.PSObject.Properties['speechEnabled']) { $script:AppConfig.speechEnabled = [bool]$stored.speechEnabled }
+        if ($null -ne $stored.PSObject.Properties['voiceEnabled']) { $script:AppConfig.voiceEnabled = [bool]$stored.voiceEnabled }
+        if ($null -ne $stored.PSObject.Properties['voiceName']) { $script:AppConfig.voiceName = [string]$stored.voiceName }
+        if ($null -ne $stored.PSObject.Properties['voiceVolume']) { $script:AppConfig.voiceVolume = [Math]::Max(0, [Math]::Min(100, [int]$stored.voiceVolume)) }
         if ($null -ne $stored.PSObject.Properties['phrases'] -and $null -ne $stored.phrases) {
             foreach ($group in @('activity','companion','interaction')) {
                 $found = $null
@@ -101,8 +104,8 @@ function Save-Settings {
 
 function Ask-Nickname([string]$currentName) {
     $answer = [Microsoft.VisualBasic.Interaction]::InputBox(
-      '小 G 老师以后该怎么称呼你？每台电脑可以单独设置哦。',
-      '欢迎领养小 G 老师', $currentName)
+      '小G以后该怎么称呼你？每台电脑可以单独设置哦。',
+      '欢迎领养小G', $currentName)
     if (-not [string]::IsNullOrWhiteSpace($answer)) {
         $script:AppConfig.nickname = $answer.Trim().Substring(0, [Math]::Min(20, $answer.Trim().Length))
         Save-Settings
@@ -120,7 +123,7 @@ if ([string]::IsNullOrWhiteSpace($script:AppConfig.nickname)) {
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="G Teacher Pet" Width="298" Height="400"
+        Title="小G" Width="298" Height="400"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" WindowStartupLocation="Manual">
   <Window.Resources>
@@ -170,6 +173,7 @@ if ([string]::IsNullOrWhiteSpace($script:AppConfig.nickname)) {
         </Setter.Value>
       </Setter>
     </Style>
+
   </Window.Resources>
   <Grid x:Name="Root" Background="Transparent">
     <Viewbox Stretch="Uniform">
@@ -208,6 +212,11 @@ if ([string]::IsNullOrWhiteSpace($script:AppConfig.nickname)) {
 
 $xmlReader = New-Object System.Xml.XmlNodeReader($xaml)
 $script:Window = [System.Windows.Markup.XamlReader]::Load($xmlReader)
+$iconPath = Join-Path $PSScriptRoot 'assets/gteacher.ico'
+if (-not (Test-Path -LiteralPath $iconPath)) { $iconPath = Join-Path $PSScriptRoot 'gteacher.ico' }
+if (Test-Path -LiteralPath $iconPath) {
+    $script:Window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$iconPath)
+}
 function Part([string]$name) {
     $found = $script:Window.FindName($name)
     if ($null -eq $found) { throw "Missing WPF part: $name" }
@@ -274,6 +283,7 @@ function Say([string]$text) {
     $script:BubbleText.Text = $text
     $script:Bubble.Visibility = 'Visible'
     $script:BubbleTimer.Stop(); $script:BubbleTimer.Start()
+    if ($script:AppConfig.voiceEnabled) { [void](Speak-PetText $text) }
 }
 
 function Say-From([string]$group, [bool]$manual = $false) {
@@ -435,7 +445,7 @@ function Set-Mode([string]$nextMode, [bool]$automatic = $false) {
             $breath.AutoReverse = $true
             $breath.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
             $script:FaceDirection.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty,$breath)
-            if (-not $automatic) { Say 'Zzz……小 G 老师盖好毯子啦。' }
+            if (-not $automatic) { Say 'Zzz……小G盖好毯子啦。' }
             if ($automatic) { $script:ActionTimer.Interval = [TimeSpan]::FromSeconds(6.0); $script:ActionTimer.Start() }
         }
         'Wave' {
@@ -467,7 +477,7 @@ function Set-Mode([string]$nextMode, [bool]$automatic = $false) {
         'Type' {
             Picture 'pose_04.png'; Start-Float -3 0.38
             $script:ActionTimer.Interval = [TimeSpan]::FromSeconds(5.0)
-            if (-not $automatic) { Say '哒哒哒……小 G 老师帮忙敲键盘！' }
+            if (-not $automatic) { Say '哒哒哒……小G帮忙敲键盘！' }
             $script:ActionTimer.Start()
         }
         'Walk' {
@@ -652,6 +662,12 @@ function Set-PetMode([string]$newMode, [bool]$announce = $true) {
 }
 
 function Show-ControlPanel {
+    # Release the pet/context-menu capture before showing an editable modal form.
+    $script:PointerPressed = $false
+    $script:IgnoreClickRelease = $false
+    $script:Window.ReleaseMouseCapture()
+    $script:Menu.IsOpen = $false
+    [void][System.Windows.Input.Mouse]::Capture($null)
     $script:LastInteraction = [DateTime]::UtcNow
     Set-Mode 'Idle'
     $script:AutoTimer.Stop()
@@ -660,7 +676,7 @@ function Show-ControlPanel {
     [xml]$panelXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="小 G 老师的小屋 · 控制台" Width="710" Height="650"
+        Title="小G的小屋 · 控制台" Width="710" Height="650"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#FFFFF8E9" FontFamily="Microsoft YaHei UI">
   <Window.Resources>
@@ -683,19 +699,92 @@ function Show-ControlPanel {
       </Setter.Value></Setter>
     </Style>
     <Style TargetType="{x:Type TextBox}">
+      <Setter Property="Foreground" Value="#FF554631"/>
+      <Setter Property="CaretBrush" Value="#FF554631"/>
+      <Setter Property="SelectionBrush" Value="#FFF1C46C"/>
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="Background" Value="#FFFFFEF8"/>
       <Setter Property="BorderBrush" Value="#FFE5C891"/>
       <Setter Property="BorderThickness" Value="1.5"/>
       <Setter Property="Padding" Value="8"/>
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="{x:Type TextBox}">
+          <Border x:Name="InputTile" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11">
+            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"/>
+          </Border>
+          <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputTile" Property="BorderBrush" Value="#FFC99048"/></Trigger></ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ComboBox}">
+      <Setter Property="FontSize" Value="14"/><Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Foreground" Value="#FF654B2A"/>
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="{x:Type ComboBox}">
+          <Grid>
+            <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+              <ToggleButton.Template><ControlTemplate TargetType="{x:Type ToggleButton}">
+                <Border x:Name="Tile" Background="#FFFFFEF8" BorderBrush="#FFE5C891" BorderThickness="1.5" CornerRadius="10">
+                  <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                </Border>
+                <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tile" Property="BorderBrush" Value="#FFC99048"/></Trigger></ControlTemplate.Triggers>
+              </ControlTemplate></ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" IsHitTestVisible="False" Margin="10,4,28,4" VerticalAlignment="Center"/>
+            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+              <Border Background="#FFFFFEF8" BorderBrush="#FFE5C891" BorderThickness="1" CornerRadius="10" Padding="4" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                <ScrollViewer MaxHeight="240" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
+
+    <Style TargetType="{x:Type TabItem}">
+      <Setter Property="Foreground" Value="#FF806849"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Padding" Value="18,10"/>
+      <Setter Property="Margin" Value="0,0,8,10"/>
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="{x:Type TabItem}">
+          <Border x:Name="TabPill" Background="#FFFFF0D6" BorderBrush="#FFE8D0A0" BorderThickness="1" CornerRadius="13" Padding="{TemplateBinding Padding}">
+            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabPill" Property="Background" Value="#FFFFE5B1"/></Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="TabPill" Property="Background" Value="#FFFFD58B"/>
+              <Setter TargetName="TabPill" Property="BorderBrush" Value="#FFE3AF55"/>
+              <Setter Property="Foreground" Value="#FF604725"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="TabPill" Property="BorderBrush" Value="#FFB88431"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
+    <Style TargetType="{x:Type TabControl}">
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="{x:Type TabControl}">
+          <Grid KeyboardNavigation.TabNavigation="Local">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/>
+            <Border Grid.Row="1" Background="{TemplateBinding Background}" BorderBrush="#FFE9C88B" BorderThickness="1" CornerRadius="14" Padding="2">
+              <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="2"/>
+            </Border>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value></Setter>
     </Style>
   </Window.Resources>
   <Border Margin="14" BorderBrush="#FFE7C27F" BorderThickness="1.5" CornerRadius="16" Background="#FFFFF9EB">
     <Grid Margin="18">
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Margin="4,0,4,12">
-        <TextBlock Text="小 G 老师的小屋" FontSize="25" FontWeight="Bold" Foreground="#FF544062"/>
-        <TextBlock Text="这里可以布置小 G 老师的日常、台词和小习惯。" FontSize="13" Foreground="#FF8B785E" Margin="0,3,0,0"/>
+        <TextBlock Text="小G的小屋" FontSize="25" FontWeight="Bold" Foreground="#FF544062"/>
+        <TextBlock Text="这里可以布置小G的日常、台词和小习惯。" FontSize="13" Foreground="#FF8B785E" Margin="0,3,0,0"/>
       </StackPanel>
       <TabControl Grid.Row="1" Background="#FFFFF9EB" BorderBrush="#FFE9C88B" FontSize="14">
         <TabItem Header="基本设置">
@@ -709,21 +798,24 @@ function Show-ControlPanel {
               </ComboBox>
               <TextBlock Text="活动会走动；陪伴不自动位移，动作与说话都更轻缓。" TextWrapping="Wrap" FontSize="12" Foreground="#FF8E7A5B" Margin="0,0,0,14"/>
               <TextBlock Text="我该怎么称呼你？" FontWeight="SemiBold" Foreground="#FF5A4B38" Margin="0,0,0,5"/>
-              <TextBox x:Name="NicknameChoice" Height="36" MaxLength="20" Margin="0,0,0,14"/>
+              <Border Background="#FFFFFEF8" BorderBrush="#FFE5C891" BorderThickness="1.5" CornerRadius="11" Margin="0,0,0,14" Padding="5,2">
+                <TextBox x:Name="NicknameChoice" Style="{x:Null}" MinHeight="38" MaxLength="20"
+                         FontSize="14" FontFamily="Microsoft YaHei UI" Foreground="#FF554631" CaretBrush="#FF554631"
+                         Background="Transparent" BorderThickness="0" Padding="4,3" VerticalContentAlignment="Center"
+                         IsReadOnly="False" IsEnabled="True" Focusable="True" IsTabStop="True"/>
+              </Border>
               <TextBlock Text="打开 ChatGPT 的快捷键" FontWeight="SemiBold" Foreground="#FF5A4B38" Margin="0,0,0,5"/>
-              <DockPanel Margin="0,0,0,14" LastChildFill="False">
-                <TextBlock Text="Ctrl + Alt + " VerticalAlignment="Center" FontSize="15" Foreground="#FF5A4B38"/>
-                <TextBox x:Name="HotkeyChoice" Width="48" Height="35" MaxLength="1" TextAlignment="Center"/>
-              </DockPanel>
+              <Border Background="#FFFFE8B9" CornerRadius="10" Padding="12,8" HorizontalAlignment="Left" Margin="0,0,0,14">
+                <TextBlock Text="Ctrl + Alt + G" FontSize="15" FontWeight="SemiBold" Foreground="#FF654B2A"/>
+              </Border>
               <CheckBox x:Name="TopmostChoice" Content="始终在其他窗口前面" FontSize="14" Foreground="#FF5A4B38" Margin="0,0,0,12"/>
-              <CheckBox x:Name="SpeechChoice" Content="允许小 G 偶尔主动说话" FontSize="14" Foreground="#FF5A4B38" Margin="0,0,0,15"/>
+              <CheckBox x:Name="SpeechChoice" Content="允许小G 偶尔主动说话" FontSize="14" Foreground="#FF5A4B38" Margin="0,0,0,15"/>
               <TextBlock Text="桌宠大小" FontWeight="SemiBold" Foreground="#FF5A4B38" Margin="0,0,0,4"/>
-              <Slider x:Name="ScaleChoice" Minimum="0.7" Maximum="1.65" TickFrequency="0.05" IsSnapToTickEnabled="True" Margin="0,0,8,0"/>
-              <TextBlock Text="在两台电脑上分别保存，不会互相修改。" TextWrapping="Wrap" FontSize="12" Foreground="#FF8E7A5B" Margin="0,15,0,0"/>
+              <DockPanel><TextBlock x:Name="ScaleLabel" DockPanel.Dock="Right" Width="85" TextAlignment="Right" VerticalAlignment="Center" Foreground="#FF796048"/><Slider x:Name="ScaleChoice" Minimum="1" Maximum="10" TickFrequency="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" Margin="0,0,8,0"/></DockPanel>
             </StackPanel>
             <Border Grid.Column="1" Background="#FFFFF0CD" BorderBrush="#FFE9CD95" BorderThickness="1" CornerRadius="14" Margin="0,8,0,0">
               <StackPanel Margin="10" HorizontalAlignment="Center">
-                <TextBlock Text="G TEACHER · 星星档案" Foreground="#FF796048" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center"/>
+                <TextBlock Text="小G · 星星档案" Foreground="#FF796048" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center"/>
                 <Image x:Name="PanelPortrait" Width="216" Height="230" Stretch="Uniform" Margin="0,8,0,0"/>
                 <TextBlock Text="当前装扮：蓝色绒帽与星星围巾" FontSize="12" Foreground="#FF685944" TextAlignment="Center" TextWrapping="Wrap" Margin="5,6,5,0"/>
                 <TextBlock Text="换装衣柜，未来慢慢解锁 ✦" FontSize="12" Foreground="#FF998460" TextAlignment="Center" Margin="3,13,3,0"/>
@@ -731,7 +823,7 @@ function Show-ControlPanel {
             </Border>
           </Grid>
         </TabItem>
-        <TabItem Header="小 G 的语料库">
+        <TabItem Header="小G的语料库">
           <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="14,12">
             <StackPanel>
               <TextBlock Text="每行一句台词。可以写 {name} 表示本机昵称，{hotkey} 表示聊天快捷键。" TextWrapping="Wrap" FontSize="13" Foreground="#FF7C674E" Margin="0,0,0,11"/>
@@ -742,6 +834,26 @@ function Show-ControlPanel {
               <TextBlock Text="你点我、摸摸我时 · 互动语料" FontWeight="Bold" Foreground="#FF66503B" Margin="0,0,0,4"/>
               <TextBox x:Name="InteractionLines" AcceptsReturn="True" TextWrapping="Wrap" Height="125" VerticalScrollBarVisibility="Auto" Margin="0,0,0,6"/>
               <TextBlock Text="修改后点保存才会生效。每组最多 50 句；建议每句不超过 30 字。" FontSize="12" Foreground="#FF8E795E" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="语音试听">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="18,12">
+            <StackPanel>
+              <TextBlock Text="让小G读出台词" FontSize="20" FontWeight="Bold" Foreground="#FF604B38" Margin="0,0,0,8"/>
+              <TextBlock Text="使用电脑已有的语音，不需要联网或 API。先试听，喜欢再开启。" Foreground="#FF8B785E" TextWrapping="Wrap" Margin="0,0,0,18"/>
+              <CheckBox x:Name="VoiceEnabledChoice" Content="开启小G语音朗读" Foreground="#FF5A4B38" Margin="0,0,0,18"/>
+              <TextBlock Text="音色" Foreground="#FF5A4B38" FontWeight="SemiBold" Margin="0,0,0,7"/>
+              <ComboBox x:Name="VoiceChoice" Height="38" Margin="0,0,0,18"/>
+              <TextBlock Text="音量" Foreground="#FF5A4B38" FontWeight="SemiBold" Margin="0,0,0,7"/>
+              <Slider x:Name="VoiceVolumeChoice" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="10" Margin="0,0,0,16"/>
+              <WrapPanel Margin="0,0,0,15">
+                <Button x:Name="VoicePreviewBtn" Content="▶ 试听一下" Margin="0,0,10,0"/>
+                <Button x:Name="VoiceStopBtn" Content="■ 停止播放" Background="#FFFFF2D5"/>
+              </WrapPanel>
+              <TextBlock x:Name="VoiceStatus" Foreground="#FF8B785E" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <TextBlock Text="试听不会自动开启语音。开启、音色和音量设置点击保存后生效；关闭开关会立即停止播放。" Foreground="#FF8B785E" TextWrapping="Wrap" FontSize="12"/>
             </StackPanel>
           </ScrollViewer>
         </TabItem>
@@ -760,18 +872,33 @@ function Show-ControlPanel {
     $reader = New-Object System.Xml.XmlNodeReader($panelXaml)
     $script:PanelWindow = [System.Windows.Markup.XamlReader]::Load($reader)
     $script:PanelWindow.Owner = $script:Window
+    $script:PanelWindow.Icon = $script:Window.Icon
     $script:PanelControls = @{}
-    foreach ($id in @('ModeChoice','NicknameChoice','HotkeyChoice','TopmostChoice','SpeechChoice','ScaleChoice',
+    foreach ($id in @('ModeChoice','NicknameChoice','TopmostChoice','SpeechChoice','ScaleChoice','ScaleLabel','VoiceEnabledChoice','VoiceChoice','VoiceVolumeChoice','VoicePreviewBtn','VoiceStopBtn','VoiceStatus',
                     'PanelPortrait','ActivityLines','CompanionLines','InteractionLines','ResetLinesBtn','CancelBtn','SaveBtn')) {
         $script:PanelControls[$id] = $script:PanelWindow.FindName($id)
     }
     $p = $script:PanelControls
     $p.ModeChoice.SelectedIndex = if ($script:AppConfig.mode -eq 'activity') { 0 } else { 1 }
     $p.NicknameChoice.Text = $script:AppConfig.nickname
-    $p.HotkeyChoice.Text = $script:AppConfig.hotkeyLetter
+    $script:PanelWindow.Add_ContentRendered({
+        [void]$script:PanelControls.NicknameChoice.Focus()
+        [void][System.Windows.Input.Keyboard]::Focus($script:PanelControls.NicknameChoice)
+        $script:PanelControls.NicknameChoice.SelectAll()
+    })
+    Initialize-VoicePanel
     $p.TopmostChoice.IsChecked = $script:AppConfig.topmost
     $p.SpeechChoice.IsChecked = $script:AppConfig.speechEnabled
-    $p.ScaleChoice.Value = $script:AppConfig.scale
+    $p.ScaleChoice.Value = [Math]::Max(1, [Math]::Min(10, [Math]::Round(($script:AppConfig.scale - 0.7) / 0.1) + 1))
+    $p.ScaleLabel.Text = ('{0} / 10' -f [int]$p.ScaleChoice.Value)
+    $p.ScaleChoice.Add_ValueChanged({
+        $level = [int]$script:PanelControls.ScaleChoice.Value
+        $script:PanelControls.ScaleLabel.Text = ('{0} / 10' -f $level)
+        $previewScale = 0.7 + ($level - 1) * 0.1
+        $script:Window.Width = 298 * $previewScale
+        $script:Window.Height = 400 * $previewScale
+    })
+    $script:PanelWindow.Add_Closed({ Stop-PetVoice; Resize-Pet 0 })
     $p.PanelPortrait.Source = $script:Pictures['portrait.png']
     $p.ActivityLines.Text = $script:AppConfig.phrases.activity -join "`r`n"
     $p.CompanionLines.Text = $script:AppConfig.phrases.companion -join "`r`n"
@@ -789,12 +916,8 @@ function Show-ControlPanel {
     $p.SaveBtn.Add_Click({
         $c = $script:PanelControls
         $nickname = ([string]$c.NicknameChoice.Text).Trim()
-        $letter = ([string]$c.HotkeyChoice.Text).Trim().ToUpperInvariant()
         if ($nickname.Length -lt 1 -or $nickname.Length -gt 20) {
-            [void][System.Windows.MessageBox]::Show('昵称请填 1～20 个字符哦。','小 G 老师提醒'); return
-        }
-        if ($letter -cnotmatch '^[A-Z]$') {
-            [void][System.Windows.MessageBox]::Show('快捷键请填一个英文字母 A-Z。','小 G 老师提醒'); return
+            [void][System.Windows.MessageBox]::Show('昵称请填 1～20 个字符哦。','小G提醒'); return
         }
         $changedPhrases = @{}
         foreach ($group in @('activity','companion','interaction')) {
@@ -806,21 +929,19 @@ function Show-ControlPanel {
             }
             $changedPhrases[$group] = $clean
         }
-        $oldLetter = $script:AppConfig.hotkeyLetter
-        if ($letter -ne $oldLetter) {
-            $script:AppConfig.hotkeyLetter = $letter
-            if (-not (Register-CurrentHotkey)) {
-                $script:AppConfig.hotkeyLetter = $oldLetter
-                [void](Register-CurrentHotkey)
-                [void][System.Windows.MessageBox]::Show('这个快捷键可能被其他程序占用，换个字母试试。','快捷键冲突'); return
-            }
+        if ([bool]$c.VoiceEnabledChoice.IsChecked -and $null -eq $c.VoiceChoice.SelectedItem) {
+            [void][System.Windows.MessageBox]::Show('没有检测到可用的系统语音。请先关闭语音开关，或安装语音包后重启小G。','语音暂不可用'); return
         }
+        $script:AppConfig.voiceEnabled = [bool]$c.VoiceEnabledChoice.IsChecked
+        $script:AppConfig.voiceName = [string]$c.VoiceChoice.SelectedItem
+        $script:AppConfig.voiceVolume = [int]$c.VoiceVolumeChoice.Value
+        Stop-PetVoice
         $script:AppConfig.nickname = $nickname
         $script:AppConfig.topmost = [bool]$c.TopmostChoice.IsChecked
         $script:Window.Topmost = $script:AppConfig.topmost
         $script:AppConfig.speechEnabled = [bool]$c.SpeechChoice.IsChecked
         $script:AppConfig.phrases = $changedPhrases
-        $newScale = [Math]::Round([double]$c.ScaleChoice.Value,2)
+        $newScale = [Math]::Round(0.7 + ([int]$c.ScaleChoice.Value - 1) * 0.1, 2)
         $script:AppConfig.scale = $newScale
         Resize-Pet 0
         $newMode = if ($c.ModeChoice.SelectedIndex -eq 1) { 'companion' } else { 'activity' }
@@ -830,28 +951,12 @@ function Show-ControlPanel {
     [void]$script:PanelWindow.ShowDialog()
     if ($script:PanelWindow.DialogResult -eq $true) { Say '小屋布置好啦！我会记住的～' }
     } catch {
-        [void][System.Windows.MessageBox]::Show(('设置窗口暂时出问题了：' + $_.Exception.Message), '小 G 老师提醒')
+        [void][System.Windows.MessageBox]::Show(('设置窗口暂时出问题了：' + $_.Exception.Message), '小G提醒')
     } finally {
         $script:PanelWindow = $null
         $script:PanelControls = $null
         Schedule-Auto
         Schedule-Ambient
-    }
-}
-function Change-Hotkey {
-    $answer = [Microsoft.VisualBasic.Interaction]::InputBox(
-      '请输入一个英文字母。快捷键将是 Ctrl + Alt + 这个字母。',
-      '更改打开 ChatGPT 的快捷键', $script:AppConfig.hotkeyLetter)
-    if ($answer -notmatch '^[A-Za-z]$') { Say '请只填一个 A-Z 英文字母哦。'; return }
-    $previous = $script:AppConfig.hotkeyLetter
-    $script:AppConfig.hotkeyLetter = $answer.ToUpperInvariant()
-    if (Register-CurrentHotkey) {
-        Save-Settings
-        Say ("快捷键改成 Ctrl + Alt + {0} 啦！" -f $script:AppConfig.hotkeyLetter)
-    } else {
-        $script:AppConfig.hotkeyLetter = $previous
-        [void](Register-CurrentHotkey)
-        Say '这个组合可能被其他程序占用啦。'
     }
 }
 function Resize-Pet([double]$step) {
@@ -877,18 +982,17 @@ $script:Menu = $menu
 $menu.Style = $script:Window.FindResource('HoneyMenu')
 $commands = @(
   @('打开 ChatGPT 网页  ↗','Chat'),
-  @('今日 To-do  📝','Todo'), @('看看今日天气  ☀','Weather'),
-  @('番茄钟：开始专注  🍅','Focus'), @('小 G 生活手账  📒','Life'),
+  @('看看今日天气  ☀','Weather'), @('工作台  📒','Life'),
   @('','Divider'),
-  @('摸摸小 G 老师','Interact'), @('带小 G 老师散步','Walk'),
-  @('给小 G 老师盖毯子','Sleep'), @('叫醒小 G 老师','Idle'),
+  @('摸摸小G','Interact'), @('带小G散步','Walk'),
+  @('给小G盖毯子','Sleep'), @('叫醒小G','Idle'),
   @('','Divider'),
   @('活动模式 · 点击切换','ToggleMode'),
-  @('打开小 G 控制台  ⚙','Settings'),
-  @('检查小 G 更新  ✨','CheckUpdate'),
+  @('打开小G 控制台  ⚙','Settings'),
+  @('检查小G 更新  ✨','CheckUpdate'),
   @('始终置顶：已开启','Topmost'),
   @('','Divider'),
-  @('退出小 G 老师','Exit')
+  @('退出小G','Exit')
 )
 foreach ($entry in $commands) {
     if ($entry[1] -eq 'Divider') {
@@ -941,7 +1045,7 @@ function Update-Menu-States {
     if ($script:AppConfig.mode -eq 'activity') {
         $script:ModeMenuItem.Header = '当前：活动模式  ⇄  切换陪伴'
         $script:WalkMenuItem.IsEnabled = $true
-        $script:WalkMenuItem.Header = '带小 G 老师散步'
+        $script:WalkMenuItem.Header = '带小G散步'
     } else {
         $script:ModeMenuItem.Header = '当前：陪伴模式  ⇄  切换活动'
         $script:WalkMenuItem.IsEnabled = $false
@@ -1028,6 +1132,7 @@ $script:AmbientTimer.Add_Tick({
 })
 
 # Productivity features share the existing WPF dispatcher and custom pet bubble.
+. (Join-Path $PSScriptRoot 'VoiceDesk.ps1')
 . (Join-Path $PSScriptRoot 'LifeDesk.ps1')
 . (Join-Path $PSScriptRoot 'UpdateDesk.ps1')
 
@@ -1045,10 +1150,11 @@ $script:Window.Add_SourceInitialized({
             return [IntPtr]::Zero
         }
         $script:Source.AddHook($script:HotkeyHook)
-        if (-not (Register-CurrentHotkey)) { Say '聊天快捷键冲突了，可以右键修改哦。' }
+        if (-not (Register-CurrentHotkey)) { Say 'Ctrl+Alt+G 被其他程序占用了，仍可右键打开 ChatGPT。' }
     } catch { Say '快捷键暂不可用，但右键仍可打开聊天。' }
 })
 $script:Window.Add_Closed({
+    Stop-PetVoice -Dispose
     $script:BubbleTimer.Stop(); $script:ActionTimer.Stop()
     $script:MotionTimer.Stop(); $script:FootstepTimer.Stop(); $script:GestureTimer.Stop()
     $script:BlinkTimer.Stop(); $script:BlinkRestoreTimer.Stop()
@@ -1061,6 +1167,7 @@ $script:Window.Add_Closed({
     if ($null -ne $script:WeatherWindow) { try { $script:WeatherWindow.Close() } catch { } }
     if ($null -ne $script:UpdatePromptTimer) { $script:UpdatePromptTimer.Stop() }
     if ($null -ne $script:UpdateStartupTimer) { $script:UpdateStartupTimer.Stop() }
+    if ($null -ne $script:UpdateTimeoutTimer) { $script:UpdateTimeoutTimer.Stop() }
     if ($null -ne $script:UpdateClient) {
         try { $script:UpdateClient.CancelAsync(); $script:UpdateClient.Dispose() } catch { }
     }
