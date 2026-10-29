@@ -1,0 +1,15 @@
+# Local settings and personal notebook data are never part of the public source.
+settings.json
+life.json
+life.json.bak
+last-update-check.txt
+*.log
+dist/
+build/
+.vs/
+.idea/
+Thumbs.db
+Desktop.ini
+*.zip
+*.exe
+!assets/*.exe
