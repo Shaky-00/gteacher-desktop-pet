@@ -1,0 +1,79 @@
+name: Build Windows installer
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: '发布此版本给家人和朋友（先检查构建结果）'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate version and source files
+        shell: powershell
+        run: |
+          $version = (Get-Content version.txt -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version: $version" }
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$version") {
+            throw 'The Git tag does not match version.txt.'
+          }
+          foreach ($file in @('GTeacherPet.ps1','LifeDesk.ps1','UpdateDesk.ps1','installer/GTeacher.iss','assets/gteacher.ico')) {
+            if (-not (Test-Path -LiteralPath $file)) { throw "Missing required file: $file" }
+          }
+          if ((Get-ChildItem sprites -Filter '*.png').Count -lt 20) { throw 'Sprite image set is incomplete.' }
+          $checker = Get-Content UpdateDesk.ps1 -Raw -Encoding UTF8
+          if (-not $checker.Contains("[Version]'$version'")) { throw 'UpdateDesk.ps1 version does not match version.txt.' }
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "PET_VERSION=$version`n", (New-Object System.Text.UTF8Encoding($false)))
+
+      - name: Install Windows packaging tools
+        shell: powershell
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -RequiredVersion '1.0.18' -Scope CurrentUser -Force -AllowClobber
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed.' }
+
+      - name: Build application and installer
+        shell: powershell
+        run: |
+          & .\scripts\build-windows.ps1 -Version $env:PET_VERSION
+
+      - name: Store installer artifact for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTeacher-Windows-${{ github.run_number }}
+          path: |
+            dist/GTeacher-Setup-v*.exe
+            dist/GTeacher-Setup-v*.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release (only when requested or tagged)
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$env:PET_VERSION"
+          & gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Bump version.txt instead of replacing it." }
+          & gh release create $tag "dist/GTeacher-Setup-v$env:PET_VERSION.exe" "dist/GTeacher-Setup-v$env:PET_VERSION.exe.sha256" `
+              --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "小 G 老师 $tag" `
+              --notes 'Windows 10/11 小 G 老师桌宠分享版。下载 Setup.exe 安装；个人设置与生活手账留在本机。'
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing GitHub Release failed.' }
